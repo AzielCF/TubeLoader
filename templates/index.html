@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TubeLoader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+
+  <body class="bg-[#333] mx-9 text-white">
+    <main>
+      <section class="flex row mt-5">
+        <div class="flex row pr-5 gap-2">
+          <button onclick="descargar()" class="bg-[#6c757d] rounded p-1 disabled:opacity-50">
+            Descargar
+          </button>
+        </div>
+        <div class="w-full">
+          <input
+            type="url"
+            id="urlInput"
+            class="w-full h-full p-2 rounded text-black"
+            placeholder="Url"
+            value="https://www.youtube.com/watch?v=C_vw9VYeXyI"
+            oninput="obtenerInfo()"
+          />
+        </div>
+      </section>
+      <section class="flex gap-5 row my-5">
+        <div class="border flex-initial w-full p-3">
+          <h2 class="text-xl">Descargas</h2>
+          <ul id="descargas">
+            <!-- Lista de descargas -->
+          </ul>
+        </div>
+
+        <div class="flex flex-col gap-3 w-2/6">
+          <div class="border p-3">
+            <h2 class="text-xl">Preview</h2>
+            <div>
+              <object
+                style="
+                  width: 100%;
+                  height: 100%;
+                  width: 200px;
+                  height: 116px;
+                  float: none;
+                  clear: both;
+                  margin: 2px auto;
+                "
+              ></object>
+            </div>
+          </div>
+          <div class="border p-3">
+            <h2 class="text-xl">Info</h2>
+            <ul>
+              <li>Titulo: <span id="nombre"></span></li>
+              <li>Peso: <span id="peso"></span></li>
+              <li id="estado">Estado:</li>
+            </ul>
+          </div>
+          <div class="border p-3">
+            <h2 class="text-xl">Config</h2>
+            <ul>
+              <li>
+                <div>Resolución</div>
+                <select class="text-black" id="resolucion">
+                  <!-- Opciones de calidad se añadirán aquí -->
+                </select>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script>
+      const urlInput = document.querySelector("#urlInput");
+      const descargas = document.querySelector("#descargas");
+      const estado = document.querySelector("#estado");
+      const resolucionSelect = document.querySelector("#resolucion");
+      let resolutionsMap = {};
+
+      async function obtenerInfo() {
+        if (!urlInput.value) return;
+        const response = await pywebview.api.video_info(urlInput.value);
+        resolucionSelect.innerHTML = "";
+        console.log(response);
+
+        const nombreVideo = document.querySelector("#nombre");
+        const pesoVideo = document.querySelector("#peso");
+        const videoObject = document.querySelector("object");
+        
+        nombreVideo.textContent = `${response.title}`;
+        videoObject.data = `http://www.youtube.com/embed/${response.id}`;
+
+        // Limpia el mapa de resoluciones antes de llenarlo de nuevo
+        resolutionsMap = {};
+
+        response.resolutions.forEach((res) => {
+          if (!res.resolution) return;
+          const option = document.createElement("option");
+          option.value = res.itag;
+          option.textContent = res.resolution;
+          resolucionSelect.appendChild(option);
+
+          // Guarda el fileSize en el mapa con itag como clave
+          resolutionsMap[res.itag] = res.fileSize;
+        });
+
+        // Añadir event listener para actualizar el fileSize cuando se cambia la opción
+        resolucionSelect.addEventListener("change", () => {
+          const selectedItag = resolucionSelect.value;
+          const selectedFileSize = resolutionsMap[selectedItag];
+          pesoVideo.textContent = `${selectedFileSize}mb`;
+        });
+
+        // Seleccionar y mostrar el tamaño del archivo del primer elemento
+        if (resolucionSelect.options.length > 0) {
+          resolucionSelect.selectedIndex = 0;
+          const firstItag = resolucionSelect.options[0].value;
+          const firstFileSize = resolutionsMap[firstItag];
+          pesoVideo.textContent = `${firstFileSize}mb`;
+        }
+      }
+
+      async function descargar() {
+        if (!urlInput.value) return;
+        console.log(urlInput.value);
+        const response = await pywebview.api.donwload_video(
+          urlInput.value,
+          resolucionSelect.value
+        );
+        console.log(response);
+      }
+
+      // Recibir mensajes de Python
+      window.addEventListener("pywebview", (event) => {
+        const message = event.detail;
+        if (message.type === "progress") {
+          console.log(message.progress);
+          estado.innerText = `Estado: ${message.progress}%`;
+        } else if (message.type === "complete") {
+          estado.innerText = "Estado: Completo";
+        } else if (message.type == "video-info") {
+          const { filename, metadata } = message;
+          const nombreVideo = document.querySelector("#nombre");
+          const pesoVideo = document.querySelector("#peso");
+          nombreVideo.textContent += `${filename}`;
+          pesoVideo.textContent += `${metadata}`;
+
+          const li = document.createElement("li");
+          li.textContent = message.filename;
+          descargas.appendChild(li);
+        }
+      });
+    </script>
+  </body>
+</html>
