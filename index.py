@@ -44,10 +44,10 @@ class API:
     
     def video_info(self, url: str):
         video = YouTube(url)
-        info = {"id": extract.video_id(url), "title": video.title, "resolutions": self.obtener_calidades(video) }
+        info = {"id": extract.video_id(url), "title": video.title, "resolutions": self.get_qualitys(video) }
         return info
 
-    def obtener_calidades(self, video: str):
+    def get_qualitys(self, video: str):
         calidades = [{"itag": stream.itag, "resolution": stream.resolution, "type": "video", "fileSize": stream.filesize_mb} if stream.resolution else {"itag": stream.itag, "type": "audio"} for stream in video.streams.filter(progressive=True)]
         return calidades
 
