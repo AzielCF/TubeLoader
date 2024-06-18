@@ -5,6 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TubeLoader</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .popover-content {
+        width: 100%;
+        max-width: 520px;
+        height: 180px;
+        background-color:aliceblue;
+        border: 1px solid #ddd;
+        padding: 5px;
+        border-radius: 5px;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+      .popover-content video {
+        background-color: #000;
+        width: 60%;
+        height: 100%;
+        
+      }
+    </style>
   </head>
 
   <body class="bg-[#333] mx-9 text-white">
@@ -29,7 +50,7 @@
       <section class="flex gap-5 row my-5">
         <div class="border flex-initial w-full p-3">
           <h2 class="text-xl">Descargas</h2>
-          <ul id="descargas">
+          <ul id="videoList">
             <!-- Lista de descargas -->
           </ul>
         </div>
@@ -72,6 +93,7 @@
           </div>
         </div>
       </section>
+      <div id="localVideoPreview"></div>
     </main>
     <script>
       const urlInput = document.querySelector("#urlInput");
@@ -126,9 +148,9 @@
       async function descargar() {
         if (!urlInput.value) return;
         console.log(urlInput.value);
-        const response = await pywebview.api.donwload_video(
+        const response = await pywebview.api.download_video(
           urlInput.value,
-          resolucionSelect.value
+          resolucionSelect.value,
         );
         console.log(response);
       }
@@ -153,6 +175,57 @@
           descargas.appendChild(li);
         }
       });
+
+      async function loadDownloadedVideos() {
+        pywebview.api.get_downloaded_videos().then(videos => {
+          let videoList = document.getElementById('videoList');
+          videoList.innerHTML = '';
+          console.log(videos);
+          videos.forEach(video => {
+            let li = document.createElement('li');
+            let a = document.createElement('a');
+            a.textContent = video.name;
+            a.href = '#';
+            a.addEventListener('click', (e) => {
+              e.preventDefault();
+              showPopover(video.path);
+            });
+
+            li.appendChild(a);
+            videoList.appendChild(li);
+          });
+        });
+      }
+
+      function showPopover(videoPath) {
+        const popover = document.createElement('div');
+        popover.className = 'popover-content';
+        const videoEl = document.createElement('video');
+        videoEl.src = videoPath;
+        videoEl.controls = true;
+        videoEl.autoplay = true;
+        popover.appendChild(videoEl);
+
+        document.body.appendChild(popover);
+
+        popover.addEventListener('click', () => {
+          document.body.removeChild(popover);
+        });
+      }
+
+      function handleFileEvent(event) {
+        const { type, file } = event.detail;
+        if (type === 'created' || type === 'deleted') {
+          loadDownloadedVideos();
+        }
+      }
+
+      window.addEventListener('pywebviewready', function() {
+        console.log("pywebview is ready");
+        loadDownloadedVideos();
+      });
+
+      window.addEventListener('pywebview', handleFileEvent);
     </script>
   </body>
 </html>
